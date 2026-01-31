@@ -1,23 +1,5 @@
-use serde::Deserialize;
-#[derive(Debug, Deserialize)]
-pub struct NotionWebhookPayload {
-    pub data: NotionPageData,
-}
+pub mod gemini;
+pub mod notion;
 
-#[derive(Debug, Deserialize)]
-pub struct NotionWebhookContent {
-    pub content_type: AutomationContentType,
-    pub payload: NotionWebhookPayload,
-}
-
-#[derive(Debug, Deserialize)]
-pub enum AutomationContentType {
-    Unknown,
-    Diary,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct NotionPageData {
-    id: String,
-    url: String,
-}
+pub use gemini::*;
+pub use notion::*;
