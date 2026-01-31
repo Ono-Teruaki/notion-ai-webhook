@@ -4,11 +4,11 @@ use reqwest::header::AUTHORIZATION;
 use std::env;
 
 pub async fn fetch_notion_page(
+    client: &reqwest::Client,
     webhook_payload: NotionWebhookPayload,
 ) -> Result<NotionPageDetail, Box<dyn std::error::Error>> {
     dotenv().ok();
     let api_key = env::var("NOTION_API_KEY")?;
-    let client = reqwest::Client::new();
     let page_id = &webhook_payload.data.id;
     let url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
 

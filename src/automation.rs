@@ -4,11 +4,12 @@ use crate::{
     api::fetch_notion_page,
     types::{
         AutomationContentType, ExtractText, GeminiAPIPrompt, GeminiAPIPromptContent,
-        GenerationConfig, NotionPageDetail, NotionWebhookContent, NotionWebhookPayload, Part, Role,
+        GenerationConfig, NotionPageDetail, NotionWebhookPayload, Part, Role,
     },
 };
 
 pub async fn handle_webhook(headers: HeaderMap, body: String) -> String {
+    let client = reqwest::Client::new();
     let content_type_str = headers
         .get("content_type")
         .and_then(|v| v.to_str().ok())
@@ -26,13 +27,8 @@ pub async fn handle_webhook(headers: HeaderMap, body: String) -> String {
             return "Invalid data".to_string();
         }
     };
-    println!("webhook payload: {:#?}", payload);
-    let webhook_content = NotionWebhookContent {
-        content_type: content_type,
-        payload: payload,
-    };
 
-    let page_data = match fetch_notion_page(webhook_content.payload).await {
+    let page_data = match fetch_notion_page(&client, payload).await {
         Ok(data) => data,
         Err(e) => {
             println!("Error: {}", e);
@@ -40,13 +36,18 @@ pub async fn handle_webhook(headers: HeaderMap, body: String) -> String {
         }
     };
 
-    println!("Notion API Response Data: {page_data:#?}");
+    let prompt = match content_type {
+        AutomationContentType::Diary => gen_diary_prompt(page_data),
+        AutomationContentType::Unknown => return "不正なWebhookタイプです".to_string(),
+    };
+
+    println!("Gemini API prompt: {prompt:#?}");
 
     body
 }
 
 fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
-    let system_instruction = Some(String::from(
+    let system_instruction_str = 
         r#"
 あなたは日記のレビュー結果をNotion API形式で出力する専用マシンです。
 日記の内容を汲み取り今後の方針や疑問解消などをしながらポジティブ気味にフィードバック文を考えてください。
@@ -62,8 +63,14 @@ fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
     Notion APIの "Append block children" 形式に従ってください。
 
 【出力テンプレート】 [ { "object": "block", "type": "heading_2", "heading_2": { "rich_text": [{ "type": "text", "text": { "content": "ここに総評" } }] } }, { "object": "block", "type": "paragraph", "paragraph": { "rich_text": [{ "type": "text", "text": { "content": "ここに詳細" } }] } } ]
-"#,
-    ));
+"#.to_string();
+
+    let mut system_instruction_parts = vec![];
+    system_instruction_parts.push(Part { text: system_instruction_str });
+
+    let system_instruction = Some(
+        GeminiAPIPromptContent { role: Some(Role::User), parts: system_instruction_parts }
+    );
 
     let page_contents: Vec<Part> = page_detail
         .body

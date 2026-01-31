@@ -1,12 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct NotionWebhookContent {
-    pub content_type: AutomationContentType,
-    pub payload: NotionWebhookPayload,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 pub struct NotionWebhookPayload {
     pub data: NotionPageRef,
 }

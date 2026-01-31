@@ -4,7 +4,7 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct GeminiAPIPrompt {
     pub contents: Vec<GeminiAPIPromptContent>,
-    pub system_instruction: Option<String>,
+    pub system_instruction: Option<GeminiAPIPromptContent>,
     pub generation_config: Option<GenerationConfig>,
 }
 
