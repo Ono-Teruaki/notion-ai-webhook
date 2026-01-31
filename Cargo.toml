@@ -1,0 +1,15 @@
+[package]
+name = "notion-diary-ai"
+version = "0.1.0"
+edition = "2021"
+authors = ["onoteruaki <terusan.o@icloud.com>"]
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+axum = { version = "0.8" }
+tower-service = "0.3.3"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tokio = { version = "1.49.0", features = ["full"] }
