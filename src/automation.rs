@@ -1,15 +1,15 @@
 use axum::http::header::HeaderMap;
+use reqwest::StatusCode;
 
 use crate::{
-    api::fetch_notion_page,
+    api::{fetch_notion_page, gen_notion_page_contents_from_gemini_api},
     types::{
-        AutomationContentType, ExtractText, GeminiAPIPrompt, GeminiAPIPromptContent,
+        AutomationContentType, ExtractText, GeminiAPIChatContent, GeminiAPIPrompt,
         GenerationConfig, NotionPageDetail, NotionWebhookPayload, Part, Role,
     },
 };
 
-pub async fn handle_webhook(headers: HeaderMap, body: String) -> String {
-    let client = reqwest::Client::new();
+pub async fn handle_webhook(headers: HeaderMap, body: String) -> StatusCode {
     let content_type_str = headers
         .get("content_type")
         .and_then(|v| v.to_str().ok())
@@ -24,53 +24,85 @@ pub async fn handle_webhook(headers: HeaderMap, body: String) -> String {
         Ok(p) => p,
         Err(e) => {
             println!("Failed to JSON perse: {}", e);
-            return "Invalid data".to_string();
+            return StatusCode::BAD_REQUEST;
         }
     };
 
-    let page_data = match fetch_notion_page(&client, payload).await {
-        Ok(data) => data,
-        Err(e) => {
-            println!("Error: {}", e);
-            return "Failed to get notion page data".to_string();
+    tokio::spawn(async move {
+        match process_automation(payload, content_type).await {
+            Ok(_) => println!("Automation completed successfully"),
+            Err(e) => println!("Automation failed: {}", e),
         }
-    };
+    });
+
+    StatusCode::OK
+}
+
+pub async fn process_automation(
+    payload: NotionWebhookPayload,
+    content_type: AutomationContentType,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    println!("Webhook payload: {:?}", payload);
+    let notion_page_content = fetch_notion_page(&client, payload).await?;
+    println!("Notion Page Content: {:?}", notion_page_content);
 
     let prompt = match content_type {
-        AutomationContentType::Diary => gen_diary_prompt(page_data),
-        AutomationContentType::Unknown => return "不正なWebhookタイプです".to_string(),
+        AutomationContentType::Diary => gen_diary_prompt(notion_page_content),
+        AutomationContentType::Unknown => return Err("Error: Unknown Content Type".into()),
     };
 
-    println!("Gemini API prompt: {prompt:#?}");
+    let response = gen_notion_page_contents_from_gemini_api(&client, prompt).await?;
 
-    body
+    println!("Gemini API Response: {response:?}");
+
+    Ok(())
 }
 
 fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
-    let system_instruction_str = 
-        r#"
-あなたは日記のレビュー結果をNotion API形式で出力する専用マシンです。
-日記の内容を汲み取り今後の方針や疑問解消などをしながらポジティブ気味にフィードバック文を考えてください。
+    let system_instruction_str = r#"
+あなたは日記のレビュー結果をNotion API (Append block children) 形式のJSON配列で出力する専門マシンです。
 
 【重要ルール】
+1. 出力は必ず [ で始まり ] で終わる有効なJSON配列のみ。
+2. Markdownの解説、挨拶、```json などの囲みは一切禁止。
+3. 以下のJSON構造を完全に遵守してください。
 
-    出力は必ず [ で始まり ] で終わる有効なJSON配列のみとしてください。
-
-    JSON以外の説明、挨拶、Markdownタグ（```jsonなど）は一切含めないでください。
-
-    内容は heading_2（総評）と paragraph（詳細レビュー）で構成してください。
-
-    Notion APIの "Append block children" 形式に従ってください。
-
-【出力テンプレート】 [ { "object": "block", "type": "heading_2", "heading_2": { "rich_text": [{ "type": "text", "text": { "content": "ここに総評" } }] } }, { "object": "block", "type": "paragraph", "paragraph": { "rich_text": [{ "type": "text", "text": { "content": "ここに詳細" } }] } } ]
+【出力スキーマ】
+[
+  {
+    "object": "block",
+    "type": "heading_2",
+    "heading_2": {
+      "rich_text": [
+        {
+          "plain_text": "見出し（AIレビューなど)"
+        }
+      ]
+    }
+  },
+  {
+    "object": "block",
+    "type": "paragraph",
+    "paragraph": {
+      "rich_text": [
+        {
+          "plain_text": "ここに詳細なフィードバック"
+        }
+      ]
+    }
+  }
+]
 "#.to_string();
-
     let mut system_instruction_parts = vec![];
-    system_instruction_parts.push(Part { text: system_instruction_str });
+    system_instruction_parts.push(Part {
+        text: system_instruction_str,
+    });
 
-    let system_instruction = Some(
-        GeminiAPIPromptContent { role: Some(Role::User), parts: system_instruction_parts }
-    );
+    let system_instruction = Some(GeminiAPIChatContent {
+        role: Some(Role::User),
+        parts: system_instruction_parts,
+    });
 
     let page_contents: Vec<Part> = page_detail
         .body
@@ -81,7 +113,7 @@ fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
         .collect();
 
     let mut contents = vec![];
-    contents.push(GeminiAPIPromptContent {
+    contents.push(GeminiAPIChatContent {
         role: Some(Role::User),
         parts: page_contents,
     });

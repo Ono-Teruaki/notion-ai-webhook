@@ -1,27 +1,28 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeminiAPIPrompt {
-    pub contents: Vec<GeminiAPIPromptContent>,
-    pub system_instruction: Option<GeminiAPIPromptContent>,
+    pub contents: Vec<GeminiAPIChatContent>,
+    pub system_instruction: Option<GeminiAPIChatContent>,
     pub generation_config: Option<GenerationConfig>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct GeminiAPIPromptContent {
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeminiAPIChatContent {
     pub role: Option<Role>,
     pub parts: Vec<Part>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Role {
     User,
     Model,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Part {
     pub text: String,
 }
@@ -49,4 +50,16 @@ pub enum ResponseMimeType {
     Text,
     #[serde(rename = "application/json")]
     Json,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeminiAPIResponse {
+    pub candidates: Vec<GeminiAPICandidate>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeminiAPICandidate {
+    pub content: GeminiAPIChatContent,
 }

@@ -19,11 +19,11 @@ pub enum AutomationContentType {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NotionPageDetail {
     pub page_ref: NotionPageRef,
-    pub body: NotionBlockList,
+    pub body: NotionBlockResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct NotionBlockList {
+pub struct NotionBlockResponse {
     pub results: Vec<NotionBlock>,
 }
 
