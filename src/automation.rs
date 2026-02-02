@@ -2,7 +2,9 @@ use axum::http::header::HeaderMap;
 use reqwest::StatusCode;
 
 use crate::{
-    api::{fetch_notion_page, gen_notion_page_contents_from_gemini_api},
+    api::{
+        append_notion_block_to_page, fetch_notion_page, gen_notion_page_contents_from_gemini_api,
+    },
     types::{
         AutomationContentType, ExtractText, GeminiAPIChatContent, GeminiAPIPrompt,
         GenerationConfig, NotionPageDetail, NotionWebhookPayload, Part, Role,
@@ -44,7 +46,8 @@ pub async fn process_automation(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     println!("Webhook payload: {:?}", payload);
-    let notion_page_content = fetch_notion_page(&client, payload).await?;
+    let page_id = &payload.data.id;
+    let notion_page_content = fetch_notion_page(&client, page_id).await?;
     println!("Notion Page Content: {:?}", notion_page_content);
 
     let prompt = match content_type {
@@ -52,9 +55,11 @@ pub async fn process_automation(
         AutomationContentType::Unknown => return Err("Error: Unknown Content Type".into()),
     };
 
-    let response = gen_notion_page_contents_from_gemini_api(&client, prompt).await?;
+    let gened_block_contents = gen_notion_page_contents_from_gemini_api(&client, prompt).await?;
 
-    println!("Gemini API Response: {response:?}");
+    println!("Gemini API Response: {gened_block_contents:?}");
+
+    append_notion_block_to_page(page_id, gened_block_contents, &client).await?;
 
     Ok(())
 }

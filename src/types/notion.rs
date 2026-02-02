@@ -18,8 +18,20 @@ pub enum AutomationContentType {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NotionPageDetail {
-    pub page_ref: NotionPageRef,
     pub body: NotionBlockResponse,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NotionAppendBlockRequest {
+    pub children: Vec<NotionBlock>,
+    pub position: AppendPositionType,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AppendPositionType {
+    Start,
+    End,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -5,11 +5,10 @@ use std::env;
 
 pub async fn fetch_notion_page(
     client: &reqwest::Client,
-    webhook_payload: NotionWebhookPayload,
+    page_id: &str,
 ) -> Result<NotionPageDetail, Box<dyn std::error::Error>> {
     dotenv().ok();
     let api_key = env::var("NOTION_API_KEY")?;
-    let page_id = &webhook_payload.data.id;
     let url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
 
     let response = client
@@ -21,17 +20,38 @@ pub async fn fetch_notion_page(
         .json::<NotionBlockResponse>()
         .await?;
 
-    let page_detail = NotionPageDetail {
-        page_ref: webhook_payload.data,
-        body: response,
-    };
+    let page_detail = NotionPageDetail { body: response };
 
     Ok(page_detail)
 }
 
-// pub async fn push_to_notion_page(
+pub async fn append_notion_block_to_page(
+    page_id: &str,
+    block_contents: Vec<NotionBlock>,
+    client: &reqwest::Client,
+) -> Result<(), Box<dyn std::error::Error>> {
+    dotenv().ok();
+    let url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
+    let api_key = env::var("NOTION_API_KEY")?;
+    let request_data = NotionAppendBlockRequest {
+        children: block_contents,
+        position: AppendPositionType::End,
+    };
 
-// )
+    let response = client
+        .patch(&url)
+        .header("Notion-Version", "2025-09-03")
+        .header(AUTHORIZATION, format!("Bearer {}", api_key))
+        .json(&request_data)
+        .send()
+        .await?;
+
+    let response_body = response.text().await;
+
+    println!("Notion page Append Result: {:?}", response_body);
+
+    Ok(())
+}
 
 async fn push_to_gemini_api(
     client: &reqwest::Client,
