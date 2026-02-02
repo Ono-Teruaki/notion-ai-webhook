@@ -45,18 +45,43 @@ pub enum NotionBlock {
     Paragraph {
         paragraph: BlockContent,
     },
+    BulletedListItem {
+        bulleted_list_item: BlockContent,
+    },
+    NumberedListItem {
+        numbered_list_item: BlockContent,
+    },
+    ToDo {
+        to_do: ToDoBlockContent, // ToDoは「チェック状態」を持つため別構造体
+    },
+    Toggle {
+        toggle: BlockContent,
+    },
+    Quote {
+        quote: BlockContent,
+    },
+    Callout {
+        callout: BlockContent, // 本来はアイコンも持てますが、テキストのみなら共通化可能
+    },
+    Divider {
+        divider: EmptyStruct, // 区切り線は内容が空のオブジェクト {}
+    },
     #[serde(other)]
     Unsupported,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BlockContent {
-    pub rich_text: Vec<PlainText>,
+    pub rich_text: Vec<NotionRichText>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct PlainText {
-    pub plain_text: String,
+#[serde(rename_all = "snake_case")]
+pub struct NotionRichText {
+    pub text: NotionTextContent,
+    pub r#type: NotionRichTextType,
+    #[serde(skip_serializing)]
+    pub plain_text: Option<String>,
 }
 
 // テキスト抽出用トレイト
@@ -64,15 +89,17 @@ pub trait ExtractText {
     fn extract_text(&self) -> Option<String>;
 }
 
-impl ExtractText for BlockContent {
+impl<T: HasRichText> ExtractText for T {
     fn extract_text(&self) -> Option<String> {
-        if self.rich_text.is_empty() {
+        let rich_text = self.get_rich_text();
+        if rich_text.is_empty() {
             return None;
         }
         Some(
-            self.rich_text
+            rich_text
                 .iter()
-                .map(|t| t.plain_text.as_str())
+                .filter_map(|t| t.plain_text.as_deref())
+                .map(|t| t)
                 .collect::<Vec<_>>()
                 .join(""),
         )
@@ -86,63 +113,36 @@ impl ExtractText for NotionBlock {
             NotionBlock::Heading2 { heading_2 } => heading_2.extract_text(),
             NotionBlock::Heading3 { heading_3 } => heading_3.extract_text(),
             NotionBlock::Paragraph { paragraph } => paragraph.extract_text(),
+            NotionBlock::BulletedListItem { bulleted_list_item } => {
+                bulleted_list_item.extract_text()
+            }
+            NotionBlock::NumberedListItem { numbered_list_item } => {
+                numbered_list_item.extract_text()
+            }
+            NotionBlock::ToDo { to_do } => to_do.extract_text(),
+            NotionBlock::Toggle { toggle } => toggle.extract_text(),
+            NotionBlock::Quote { quote } => quote.extract_text(),
+            NotionBlock::Callout { callout } => callout.extract_text(),
+            NotionBlock::Divider { .. } => None,
             NotionBlock::Unsupported => None,
         }
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct NotionAppendBlockList {
-    pub children: Vec<NotionAppendBlock>,
+pub trait HasRichText {
+    fn get_rich_text(&self) -> &[NotionRichText];
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum NotionAppendBlock {
-    #[serde(rename = "heading_1")]
-    Heading1 {
-        heading_1: AppendBlockContent,
-    },
-    #[serde(rename = "heading_2")]
-    Heading2 {
-        heading_2: AppendBlockContent,
-    },
-    #[serde(rename = "heading_3")]
-    Heading3 {
-        heading_3: AppendBlockContent,
-    },
-    Paragraph {
-        paragraph: AppendBlockContent,
-    },
-    BulletedListItem {
-        bulleted_list_item: AppendBlockContent,
-    },
-    NumberedListItem {
-        numbered_list_item: AppendBlockContent,
-    },
-    ToDo {
-        to_do: ToDoBlockContent, // ToDoは「チェック状態」を持つため別構造体
-    },
-    Toggle {
-        toggle: AppendBlockContent,
-    },
-    Quote {
-        quote: AppendBlockContent,
-    },
-    Callout {
-        callout: AppendBlockContent, // 本来はアイコンも持てますが、テキストのみなら共通化可能
-    },
-    Divider {
-        divider: EmptyStruct, // 区切り線は内容が空のオブジェクト {}
-    },
-    #[serde(other)]
-    Unsupported,
+impl HasRichText for BlockContent {
+    fn get_rich_text(&self) -> &[NotionRichText] {
+        &self.rich_text
+    }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AppendBlockContent {
-    pub rich_text: Vec<NotionRichText>,
+impl HasRichText for ToDoBlockContent {
+    fn get_rich_text(&self) -> &[NotionRichText] {
+        &self.rich_text
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -156,13 +156,6 @@ pub struct EmptyStruct {}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct NotionRichText {
-    pub text: NotionTextContent,
-    pub r#type: NotionRichTextType,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
 pub enum NotionRichTextType {
     Text,
     Mention,
@@ -170,6 +163,7 @@ pub enum NotionRichTextType {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct NotionTextContent {
     pub content: String,
 }
