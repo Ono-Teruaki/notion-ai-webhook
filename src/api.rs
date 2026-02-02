@@ -29,6 +29,10 @@ pub async fn fetch_notion_page(
     Ok(page_detail)
 }
 
+// pub async fn push_to_notion_page(
+
+// )
+
 async fn push_to_gemini_api(
     client: &reqwest::Client,
     prompt: GeminiAPIPrompt,
@@ -56,13 +60,13 @@ async fn push_to_gemini_api(
 pub async fn gen_notion_page_contents_from_gemini_api(
     client: &reqwest::Client,
     prompt: GeminiAPIPrompt,
-) -> Result<Vec<NotionBlock>, Box<dyn std::error::Error>> {
+) -> Result<Vec<NotionAppendBlock>, Box<dyn std::error::Error>> {
     let response_data = push_to_gemini_api(client, prompt).await?;
     let generated_content_str = &response_data.candidates[0].content.parts[0].text;
     println!("Generated Content String: {:?}", generated_content_str);
 
-    let generated_blocks: Vec<NotionBlock> = serde_json::from_str(&generated_content_str)?;
-    println!("Generated Block List: {:?}", generated_blocks);
+    let generated_blocks: Vec<NotionAppendBlock> = serde_json::from_str(&generated_content_str)?;
+    println!("Generated Block List: {:#?}", generated_blocks);
 
     Ok(generated_blocks)
 }

@@ -90,3 +90,86 @@ impl ExtractText for NotionBlock {
         }
     }
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct NotionAppendBlockList {
+    pub children: Vec<NotionAppendBlock>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionAppendBlock {
+    #[serde(rename = "heading_1")]
+    Heading1 {
+        heading_1: AppendBlockContent,
+    },
+    #[serde(rename = "heading_2")]
+    Heading2 {
+        heading_2: AppendBlockContent,
+    },
+    #[serde(rename = "heading_3")]
+    Heading3 {
+        heading_3: AppendBlockContent,
+    },
+    Paragraph {
+        paragraph: AppendBlockContent,
+    },
+    BulletedListItem {
+        bulleted_list_item: AppendBlockContent,
+    },
+    NumberedListItem {
+        numbered_list_item: AppendBlockContent,
+    },
+    ToDo {
+        to_do: ToDoBlockContent, // ToDoは「チェック状態」を持つため別構造体
+    },
+    Toggle {
+        toggle: AppendBlockContent,
+    },
+    Quote {
+        quote: AppendBlockContent,
+    },
+    Callout {
+        callout: AppendBlockContent, // 本来はアイコンも持てますが、テキストのみなら共通化可能
+    },
+    Divider {
+        divider: EmptyStruct, // 区切り線は内容が空のオブジェクト {}
+    },
+    #[serde(other)]
+    Unsupported,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AppendBlockContent {
+    pub rich_text: Vec<NotionRichText>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ToDoBlockContent {
+    pub rich_text: Vec<NotionRichText>,
+    pub checked: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct EmptyStruct {}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct NotionRichText {
+    pub text: NotionTextContent,
+    pub r#type: NotionRichTextType,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NotionRichTextType {
+    Text,
+    Mention,
+    Equation,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NotionTextContent {
+    pub content: String,
+}

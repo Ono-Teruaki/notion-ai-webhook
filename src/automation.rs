@@ -66,32 +66,34 @@ fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
 【重要ルール】
 1. 出力は必ず [ で始まり ] で終わる有効なJSON配列のみ。
 2. Markdownの解説、挨拶、```json などの囲みは一切禁止。
-3. 以下のJSON構造を完全に遵守してください。
+3. 以下のJSON構造を遵守してください。箇条書きや、トグルなどの使用は任せますが、必ずAppend block childrenのレスポンス形式にしてください。
 
 【出力スキーマ】
 [
-  {
-    "object": "block",
-    "type": "heading_2",
-    "heading_2": {
-      "rich_text": [
-        {
-          "plain_text": "見出し（AIレビューなど)"
-        }
-      ]
+   {
+      "object": "block",
+      "type": "heading_2",
+      "heading_2": {
+        "rich_text": [
+          {
+            "type": "text",
+            "text": { "content": "見出し(AIレビューなど)" }
+          }
+        ]
+      }
+    },
+    {
+      "object": "block",
+      "type": "paragraph",
+      "paragraph": {
+        "rich_text": [
+          {
+            "type": "text",
+            "text": { "content": "ここに詳細" }
+          }
+        ]
+      }
     }
-  },
-  {
-    "object": "block",
-    "type": "paragraph",
-    "paragraph": {
-      "rich_text": [
-        {
-          "plain_text": "ここに詳細なフィードバック"
-        }
-      ]
-    }
-  }
 ]
 "#.to_string();
     let mut system_instruction_parts = vec![];
