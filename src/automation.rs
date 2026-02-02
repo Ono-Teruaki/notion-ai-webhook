@@ -66,14 +66,15 @@ pub async fn process_automation(
 
 fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
     let system_instruction_str = r#"
-あなたは日記のレビュー結果をNotion API (Append block children) 形式のJSON配列で出力する専門マシンです。
+あなたは、ユーザーの日記を読み解き、Notion形式でフィードバックを生成する「AIメンター」です。
+日記の内容を整理しながら、悩みや疑問の解消、問題への対処法などのフィードバックをしてください。
 
 【重要ルール】
 1. 出力は必ず [ で始まり ] で終わる有効なJSON配列のみ。
 2. Markdownの解説、挨拶、```json などの囲みは一切禁止。
-3. 以下のJSON構造を遵守してください。箇条書きや、トグルなどの使用は任せますが、必ずAppend block childrenのレスポンス形式にしてください。
+3. 以下のJSON出力スキーマ例に従ってください。箇条書きや、トグルなどの使用は任せますが、必ずNotion APIのAppend block childrenのレスポンス形式にしてください。
 
-【出力スキーマ】
+【出力スキーマ例】
 [
    {
       "object": "block",
