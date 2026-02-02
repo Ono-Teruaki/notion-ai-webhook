@@ -1,5 +1,5 @@
 use axum::serve;
-use notion_diary_ai::router::router;
+use notion_ai_webhook::router::router;
 use tokio;
 
 #[tokio::main]

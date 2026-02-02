@@ -1,4 +1,9 @@
-FROM rust:1.80 AS builder
+FROM rust:1.84 AS builder
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY . .
@@ -7,10 +12,16 @@ RUN cargo build --release
 # Runtime Stage
 FROM debian:bookworm-slim
 WORKDIR /app
-# ビルドしたバイナリだけを軽量なイメージにコピー
-COPY --from=builder /app/target/release/notion-diary-ai /app/server
 
-# Cloud Run は環境変数 PORT で指定されたポートを待受ける必要があるため
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ビルドしたバイナリだけを軽量なイメージにコピー
+COPY --from=builder /app/target/release/notion-ai-webhook /app/server
+
+# Cloud Run ポート設定
 ENV PORT=8080
 EXPOSE 8080
 
