@@ -67,7 +67,7 @@ pub enum NotionBlock {
         to_do: ToDoBlockContent, // ToDoは「チェック状態」を持つため別構造体
     },
     Toggle {
-        toggle: BlockContent,
+        toggle: ToggleBlockContent,
     },
     Quote {
         quote: BlockContent,
@@ -85,6 +85,14 @@ pub enum NotionBlock {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BlockContent {
     pub rich_text: Vec<NotionRichText>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ToggleBlockContent {
+    pub rich_text: Vec<NotionRichText>,
+    // トグルの中身を再帰的に持てるようにする
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub children: Option<Vec<NotionBlock>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -152,6 +160,12 @@ impl HasRichText for BlockContent {
 }
 
 impl HasRichText for ToDoBlockContent {
+    fn get_rich_text(&self) -> &[NotionRichText] {
+        &self.rich_text
+    }
+}
+
+impl HasRichText for ToggleBlockContent {
     fn get_rich_text(&self) -> &[NotionRichText] {
         &self.rich_text
     }
