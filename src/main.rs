@@ -1,3 +1,5 @@
+use std::env;
+
 use axum::serve;
 use dotenv::dotenv;
 use notion_ai_webhook::{
@@ -11,9 +13,12 @@ use tokio;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     let client = Client::new();
+    let notion_api_key = env::var("NOTION_API_KEY")?;
+    let gemini_api_key = env::var("GEMINI_API_KEY")?;
+
     let state = AppState {
-        notion_service: NotionService::new(client.clone())?,
-        gemini_service: GeminiService::new(client.clone())?,
+        notion_service: NotionService::new(client.clone(), notion_api_key)?,
+        gemini_service: GeminiService::new(client.clone(), gemini_api_key)?,
     };
     let app = router(state);
 

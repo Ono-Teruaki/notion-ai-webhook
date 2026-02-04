@@ -1,6 +1,3 @@
-use std::env;
-
-use dotenv::dotenv;
 use reqwest::Client;
 
 #[derive(Clone)]
@@ -10,9 +7,7 @@ pub struct NotionService {
 }
 
 impl NotionService {
-    pub fn new(client: Client) -> Result<Self, Box<dyn std::error::Error>> {
-        dotenv().ok();
-        let api_key = env::var("NOTION_API_KEY")?;
+    pub fn new(client: Client, api_key: String) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self { client, api_key })
     }
 }
@@ -24,9 +19,7 @@ pub struct GeminiService {
 }
 
 impl GeminiService {
-    pub fn new(client: Client) -> Result<Self, Box<dyn std::error::Error>> {
-        dotenv().ok();
-        let api_key = env::var("GEMINI_API_KEY")?;
+    pub fn new(client: Client, api_key: String) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self { client, api_key })
     }
 }
