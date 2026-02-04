@@ -72,29 +72,37 @@ pub enum NotionBlock {
     Divider {
         divider: EmptyStruct, // 区切り線は内容が空のオブジェクト {}
     },
+    Code {
+        code: CodeBlockContent,
+    },
     #[serde(other)]
     Unsupported,
 }
 
 impl NotionBlock {
-    pub fn paragraph(text: &str, text_type: NotionRichTextType) -> Self {
+    pub fn paragraph(text: &str) -> Self {
         Self::Paragraph {
-            paragraph: BlockContent::new(text, text_type),
+            paragraph: BlockContent::new(text),
         }
     }
-    pub fn heading_1(text: &str, text_type: NotionRichTextType) -> Self {
+    pub fn heading_1(text: &str) -> Self {
         Self::Heading1 {
-            heading_1: BlockContent::new(text, text_type),
+            heading_1: BlockContent::new(text),
         }
     }
-    pub fn heading_2(text: &str, text_type: NotionRichTextType) -> Self {
+    pub fn heading_2(text: &str) -> Self {
         Self::Heading2 {
-            heading_2: BlockContent::new(text, text_type),
+            heading_2: BlockContent::new(text),
         }
     }
-    pub fn heading_3(text: &str, text_type: NotionRichTextType) -> Self {
+    pub fn heading_3(text: &str) -> Self {
         Self::Heading3 {
-            heading_3: BlockContent::new(text, text_type),
+            heading_3: BlockContent::new(text),
+        }
+    }
+    pub fn code(text: &str, language: String) -> Self {
+        Self::Code {
+            code: CodeBlockContent::new(text, language),
         }
     }
 }
@@ -105,9 +113,25 @@ pub struct BlockContent {
 }
 
 impl BlockContent {
-    fn new(text: &str, text_type: NotionRichTextType) -> Self {
+    fn new(text: &str) -> Self {
         Self {
-            rich_text: vec![NotionRichText::new(text, text_type)],
+            rich_text: vec![NotionRichText::new(text)],
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CodeBlockContent {
+    // caption
+    rich_text: Vec<NotionRichText>,
+    language: String,
+}
+
+impl CodeBlockContent {
+    fn new(text: &str, language: String) -> Self {
+        Self {
+            rich_text: vec![NotionRichText::new(text)],
+            language,
         }
     }
 }
@@ -121,22 +145,88 @@ pub struct ToggleBlockContent {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct NotionRichText {
-    pub text: NotionTextContent,
-    pub r#type: NotionRichTextType,
-    #[serde(skip_serializing)]
-    pub plain_text: Option<String>,
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionRichText {
+    Text {
+        text: NotionTextContent,
+        #[serde(skip_serializing)]
+        plain_text: Option<String>,
+        #[serde(default)]
+        annotations: RichTextAnnotations,
+    },
+    Mention {
+        mention: serde_json::Value,
+        #[serde(default)]
+        annotations: RichTextAnnotations,
+        #[serde(skip_serializing)]
+        plain_text: Option<String>,
+    },
+    Equation {
+        equation: serde_json::Value,
+        #[serde(default)]
+        annotations: RichTextAnnotations,
+        #[serde(skip_serializing)]
+        plain_text: Option<String>,
+    },
 }
 
 impl NotionRichText {
-    fn new(text: &str, r#type: NotionRichTextType) -> Self {
-        Self {
+    fn new(text: &str) -> Self {
+        Self::Text {
             text: NotionTextContent::new(text),
-            r#type,
             plain_text: None,
+            annotations: RichTextAnnotations::default(),
         }
     }
+
+    fn plain_text(&self) -> Option<&str> {
+        match self {
+            NotionRichText::Text { plain_text, .. } => plain_text.as_deref(),
+            NotionRichText::Mention { plain_text, .. } => plain_text.as_deref(),
+            NotionRichText::Equation { plain_text, .. } => plain_text.as_deref(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[serde(default)]
+pub struct RichTextAnnotations {
+    bold: bool,
+    italic: bool,
+    strikethrough: bool,
+    underline: bool,
+    code: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    color: Option<RichTextColor>,
+}
+
+impl Default for RichTextAnnotations {
+    fn default() -> Self {
+        Self {
+            bold: false,
+            italic: false,
+            strikethrough: false,
+            underline: false,
+            code: false,
+            color: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RichTextColor {
+    Default,
+    Red,
+    Blue,
+    Pink,
+    Green,
+    Yellow,
+    Purple,
+    Glay,
+    Blown,
+    Orange,
 }
 
 // テキスト抽出用トレイト
@@ -153,7 +243,7 @@ impl<T: HasRichText> ExtractText for T {
         Some(
             rich_text
                 .iter()
-                .filter_map(|t| t.plain_text.as_deref())
+                .filter_map(|t| t.plain_text())
                 .map(|t| t)
                 .collect::<Vec<_>>()
                 .join(""),
@@ -179,6 +269,7 @@ impl ExtractText for NotionBlock {
             NotionBlock::Quote { quote } => quote.extract_text(),
             NotionBlock::Callout { callout } => callout.extract_text(),
             NotionBlock::Divider { .. } => None,
+            NotionBlock::Code { code } => code.extract_text(),
             NotionBlock::Unsupported => None,
         }
     }
@@ -206,6 +297,12 @@ impl HasRichText for ToggleBlockContent {
     }
 }
 
+impl HasRichText for CodeBlockContent {
+    fn get_rich_text(&self) -> &[NotionRichText] {
+        &self.rich_text
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ToDoBlockContent {
     pub rich_text: Vec<NotionRichText>,
@@ -217,22 +314,23 @@ pub struct EmptyStruct {}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum NotionRichTextType {
-    Text,
-    Mention,
-    Equation,
+pub struct NotionTextContent {
+    pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link: Option<NotionLinkText>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct NotionTextContent {
-    pub content: String,
+pub struct NotionLinkText {
+    pub url: String,
 }
 
 impl NotionTextContent {
     fn new(text: &str) -> Self {
         Self {
             content: text.to_string(),
+            link: None,
         }
     }
 }

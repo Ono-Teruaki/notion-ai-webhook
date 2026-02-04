@@ -14,6 +14,7 @@ pub fn router(state: AppState) -> Router {
     let webhook_routes = Router::new()
         .route("/diary", post(handle_diary_automation))
         .route("/diary-weekly-report", post(handle_diary_automation))
+        .route("/review", post(handle_review_automation))
         .with_state(state);
 
     Router::<()>::new().nest("/webhook", webhook_routes)
