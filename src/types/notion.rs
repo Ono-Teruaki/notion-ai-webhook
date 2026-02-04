@@ -76,9 +76,40 @@ pub enum NotionBlock {
     Unsupported,
 }
 
+impl NotionBlock {
+    pub fn paragraph(text: &str, text_type: NotionRichTextType) -> Self {
+        Self::Paragraph {
+            paragraph: BlockContent::new(text, text_type),
+        }
+    }
+    pub fn heading_1(text: &str, text_type: NotionRichTextType) -> Self {
+        Self::Heading1 {
+            heading_1: BlockContent::new(text, text_type),
+        }
+    }
+    pub fn heading_2(text: &str, text_type: NotionRichTextType) -> Self {
+        Self::Heading2 {
+            heading_2: BlockContent::new(text, text_type),
+        }
+    }
+    pub fn heading_3(text: &str, text_type: NotionRichTextType) -> Self {
+        Self::Heading3 {
+            heading_3: BlockContent::new(text, text_type),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BlockContent {
     pub rich_text: Vec<NotionRichText>,
+}
+
+impl BlockContent {
+    fn new(text: &str, text_type: NotionRichTextType) -> Self {
+        Self {
+            rich_text: vec![NotionRichText::new(text, text_type)],
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -96,6 +127,16 @@ pub struct NotionRichText {
     pub r#type: NotionRichTextType,
     #[serde(skip_serializing)]
     pub plain_text: Option<String>,
+}
+
+impl NotionRichText {
+    fn new(text: &str, r#type: NotionRichTextType) -> Self {
+        Self {
+            text: NotionTextContent::new(text),
+            r#type,
+            plain_text: None,
+        }
+    }
 }
 
 // テキスト抽出用トレイト
@@ -186,4 +227,12 @@ pub enum NotionRichTextType {
 #[serde(rename_all = "snake_case")]
 pub struct NotionTextContent {
     pub content: String,
+}
+
+impl NotionTextContent {
+    fn new(text: &str) -> Self {
+        Self {
+            content: text.to_string(),
+        }
+    }
 }

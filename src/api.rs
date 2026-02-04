@@ -87,7 +87,13 @@ pub async fn gen_notion_page_contents_from_gemini_api(
     let generated_content_str = &response_data.candidates[0].content.parts[0].text;
     println!("Generated Content String: {:?}", generated_content_str);
 
-    let generated_blocks: Vec<NotionBlock> = serde_json::from_str(&generated_content_str)?;
+    let generated_blocks: Vec<NotionBlock> = match serde_json::from_str(&generated_content_str) {
+        Ok(valid_blocks) => valid_blocks,
+        Err(_) => vec![NotionBlock::heading_3(
+            "AIレスポンス生成に失敗しました",
+            NotionRichTextType::Text,
+        )],
+    };
     println!("Generated Block List: {:?}", generated_blocks);
 
     Ok(generated_blocks)
