@@ -11,12 +11,6 @@ pub struct NotionPageRef {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub enum AutomationContentType {
-    Diary,
-    Unknown,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 pub struct NotionPageDetail {
     pub body: NotionBlockResponse,
 }

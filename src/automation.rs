@@ -1,37 +1,23 @@
-use axum::http::header::HeaderMap;
+use axum::{extract::State, Json};
 use reqwest::StatusCode;
 
 use crate::{
     api::{
         append_notion_block_to_page, fetch_notion_page, gen_notion_page_contents_from_gemini_api,
     },
+    router::AppState,
     types::{
-        AutomationContentType, ExtractText, GeminiAPIChatContent, GeminiAPIPrompt,
-        GenerationConfig, NotionPageDetail, NotionWebhookPayload, Part, Role,
+        ExtractText, GeminiAPIChatContent, GeminiAPIPrompt, GenerationConfig, NotionPageDetail,
+        NotionWebhookPayload, Part, Role,
     },
 };
 
-pub async fn handle_webhook(headers: HeaderMap, body: String) -> StatusCode {
-    let content_type_str = headers
-        .get("content_type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
-
-    let content_type = match content_type_str {
-        "diary" => AutomationContentType::Diary,
-        _ => AutomationContentType::Unknown,
-    };
-
-    let payload: NotionWebhookPayload = match serde_json::from_str(&body) {
-        Ok(p) => p,
-        Err(e) => {
-            println!("Failed to JSON perse: {}", e);
-            return StatusCode::BAD_REQUEST;
-        }
-    };
-
+pub async fn handle_diary_automation(
+    State(state): State<AppState>,
+    Json(payload): Json<NotionWebhookPayload>,
+) -> StatusCode {
     tokio::spawn(async move {
-        match process_automation(payload, content_type).await {
+        match diary_automation_process(&state, payload).await {
             Ok(_) => println!("Automation completed successfully"),
             Err(e) => println!("Automation failed: {}", e),
         }
@@ -40,33 +26,30 @@ pub async fn handle_webhook(headers: HeaderMap, body: String) -> StatusCode {
     StatusCode::OK
 }
 
-pub async fn process_automation(
+pub async fn diary_automation_process(
+    state: &AppState,
     payload: NotionWebhookPayload,
-    content_type: AutomationContentType,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
     println!("Webhook payload: {:?}", payload);
     let page_id = &payload.data.id;
-    let notion_page_content = fetch_notion_page(&client, page_id).await?;
+    let notion_page_content = fetch_notion_page(&state.notion_service, page_id).await?;
     println!("Notion Page Content: {:?}", notion_page_content);
 
-    let prompt = match content_type {
-        AutomationContentType::Diary => gen_diary_prompt(notion_page_content),
-        AutomationContentType::Unknown => return Err("Error: Unknown Content Type".into()),
-    };
+    let prompt = gen_diary_prompt(notion_page_content);
 
-    let gened_block_contents = gen_notion_page_contents_from_gemini_api(&client, prompt).await?;
+    let gened_block_contents =
+        gen_notion_page_contents_from_gemini_api(&state.gemini_service, prompt).await?;
 
     println!("Gemini API Response: {gened_block_contents:?}");
 
-    append_notion_block_to_page(page_id, gened_block_contents, &client).await?;
+    append_notion_block_to_page(&state.notion_service, page_id, gened_block_contents).await?;
 
     Ok(())
 }
 
 fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
     let system_instruction_str = r#"
-あなたは、ユーザーの日記を読み解き、Notion形式でフィードバックを生成する「AIメンター」です。
+あなたは、ユーザーの日記を読み解き、Notion形式でフィードバックを生成するAIメンターです。
 日記の内容を整理しながら、悩みや疑問の解消、問題への対処法などのフィードバックをしてください。
 
 【重要ルール】

@@ -1,20 +1,22 @@
-use crate::types::*;
+use crate::{
+    service::{GeminiService, NotionService},
+    types::*,
+};
 use dotenv::dotenv;
 use reqwest::header::AUTHORIZATION;
-use std::env;
 
 pub async fn fetch_notion_page(
-    client: &reqwest::Client,
+    service: &NotionService,
     page_id: &str,
 ) -> Result<NotionPageDetail, Box<dyn std::error::Error>> {
     dotenv().ok();
-    let api_key = env::var("NOTION_API_KEY")?;
     let url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
 
-    let response = client
+    let response = service
+        .client
         .get(&url)
         .header("Notion-Version", "2025-09-03")
-        .header(AUTHORIZATION, format!("Bearer {}", api_key))
+        .header(AUTHORIZATION, format!("Bearer {}", service.api_key))
         .send()
         .await?
         .json::<NotionBlockResponse>()
@@ -26,22 +28,22 @@ pub async fn fetch_notion_page(
 }
 
 pub async fn append_notion_block_to_page(
+    service: &NotionService,
     page_id: &str,
     block_contents: Vec<NotionBlock>,
-    client: &reqwest::Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     let url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
-    let api_key = env::var("NOTION_API_KEY")?;
     let request_data = NotionAppendBlockRequest {
         children: block_contents,
         position: AppendPositionType::End,
     };
 
-    let response = client
+    let response = service
+        .client
         .patch(&url)
         .header("Notion-Version", "2025-09-03")
-        .header(AUTHORIZATION, format!("Bearer {}", api_key))
+        .header(AUTHORIZATION, format!("Bearer {}", service.api_key))
         .json(&request_data)
         .send()
         .await?;
@@ -54,19 +56,19 @@ pub async fn append_notion_block_to_page(
 }
 
 async fn push_to_gemini_api(
-    client: &reqwest::Client,
+    service: &GeminiService,
     prompt: GeminiAPIPrompt,
 ) -> Result<GeminiAPIResponse, Box<dyn std::error::Error>> {
     dotenv().ok();
-    let api_key = env::var("GEMINI_API_KEY")?;
     let model = "gemini-3-flash-preview";
 
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-        model, api_key
+        model, service.api_key
     );
 
-    let response = client
+    let response = service
+        .client
         .post(url)
         .json(&prompt)
         .send()
@@ -78,10 +80,10 @@ async fn push_to_gemini_api(
 }
 
 pub async fn gen_notion_page_contents_from_gemini_api(
-    client: &reqwest::Client,
+    service: &GeminiService,
     prompt: GeminiAPIPrompt,
 ) -> Result<Vec<NotionBlock>, Box<dyn std::error::Error>> {
-    let response_data = push_to_gemini_api(client, prompt).await?;
+    let response_data = push_to_gemini_api(service, prompt).await?;
     let generated_content_str = &response_data.candidates[0].content.parts[0].text;
     println!("Generated Content String: {:?}", generated_content_str);
 
