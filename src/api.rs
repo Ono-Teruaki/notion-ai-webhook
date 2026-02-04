@@ -2,14 +2,12 @@ use crate::{
     service::{GeminiService, NotionService},
     types::*,
 };
-use dotenv::dotenv;
 use reqwest::header::AUTHORIZATION;
 
 pub async fn fetch_notion_page(
     service: &NotionService,
     page_id: &str,
 ) -> Result<NotionPageDetail, Box<dyn std::error::Error>> {
-    dotenv().ok();
     let url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
 
     let response = service
@@ -32,7 +30,6 @@ pub async fn append_notion_block_to_page(
     page_id: &str,
     block_contents: Vec<NotionBlock>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
     let url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
     let request_data = NotionAppendBlockRequest {
         children: block_contents,
@@ -59,7 +56,6 @@ async fn push_to_gemini_api(
     service: &GeminiService,
     prompt: GeminiAPIPrompt,
 ) -> Result<GeminiAPIResponse, Box<dyn std::error::Error>> {
-    dotenv().ok();
     let model = "gemini-3-flash-preview";
 
     let url = format!(
