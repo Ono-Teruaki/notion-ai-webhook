@@ -7,8 +7,8 @@ use crate::{
     },
     router::AppState,
     types::{
-        ExtractText, GeminiAPIChatContent, GeminiAPIPrompt, GenerationConfig, NotionPageDetail,
-        NotionWebhookPayload, Part, Role,
+        ExtractText, GeminiAPIChatContent, GeminiAPIModel, GeminiAPIPrompt, GenerationConfig,
+        NotionPageDetail, NotionWebhookPayload, Part, Role,
     },
 };
 
@@ -37,8 +37,12 @@ pub async fn diary_automation_process(
 
     let prompt = gen_diary_prompt(notion_page_content);
 
-    let gened_block_contents =
-        gen_notion_page_contents_from_gemini_api(&state.gemini_service, prompt).await?;
+    let gened_block_contents = gen_notion_page_contents_from_gemini_api(
+        &state.gemini_service,
+        prompt,
+        GeminiAPIModel::Gemini3Flash,
+    )
+    .await?;
 
     println!("Gemini API Response: {gened_block_contents:?}");
 
@@ -107,8 +111,12 @@ pub async fn review_automation_process(
 
     let prompt = gen_review_prompt(notion_page_content);
 
-    let gened_block_contents =
-        gen_notion_page_contents_from_gemini_api(&state.gemini_service, prompt).await?;
+    let gened_block_contents = gen_notion_page_contents_from_gemini_api(
+        &state.gemini_service,
+        prompt,
+        GeminiAPIModel::Gemini3Pro,
+    )
+    .await?;
 
     println!("Gemini API Response: {gened_block_contents:?}");
 

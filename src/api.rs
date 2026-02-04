@@ -55,8 +55,9 @@ pub async fn append_notion_block_to_page(
 async fn push_to_gemini_api(
     service: &GeminiService,
     prompt: GeminiAPIPrompt,
+    model: GeminiAPIModel,
 ) -> Result<GeminiAPIResponse, Box<dyn std::error::Error>> {
-    let model = "gemini-3-flash-preview";
+    let model = model.model_name();
 
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
@@ -78,8 +79,9 @@ async fn push_to_gemini_api(
 pub async fn gen_notion_page_contents_from_gemini_api(
     service: &GeminiService,
     prompt: GeminiAPIPrompt,
+    model: GeminiAPIModel,
 ) -> Result<Vec<NotionBlock>, Box<dyn std::error::Error>> {
-    let response_data = push_to_gemini_api(service, prompt).await?;
+    let response_data = push_to_gemini_api(service, prompt, model).await?;
     let generated_content_str = &response_data.candidates[0].content.parts[0].text;
     println!("Generated Content String: {:?}", generated_content_str);
 

@@ -6,6 +6,7 @@
 2. Markdownの解説、挨拶、```json などの囲みは一切禁止。
 3. 以下のJSON出力スキーマ例に従ってください。箇条書きや、トグルなどの使用は任せますが、必ずNotion APIのAppend block childrenのレスポンス形式にしてください。
 4. Dividerと"AIからのレビュー"というheading_1見出しからレビューを出力してください
+5. annotationsにおいて"code": trueとする場合は、colorをannotationsに含めないでください。
 【出力スキーマ例】
 [
   {

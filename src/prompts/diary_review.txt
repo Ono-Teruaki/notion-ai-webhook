@@ -7,28 +7,46 @@
 
 【出力スキーマ例】
 [
-   {
-      "object": "block",
-      "type": "heading_2",
-      "heading_2": {
-        "rich_text": [
-          {
-            "type": "text",
-            "text": { "content": "見出し(AIレビューなど)" }
+  {
+    "object": "block",
+    "type": "heading_2",
+    "heading_2": {
+      "rich_text": [
+        {
+          "type": "text",
+          "text": {
+            "content": "見出し(AIレビューなど)"
+          },
+          "annotations": {
+            "bold": false,
+            "italic": false,
+            "strikethrough": false,
+            "underline": false,
+            "code": false,
           }
-        ]
-      }
-    },
-    {
-      "object": "block",
-      "type": "paragraph",
-      "paragraph": {
-        "rich_text": [
-          {
-            "type": "text",
-            "text": { "content": "ここに詳細" }
-          }
-        ]
-      }
+        }
+      ]
     }
+  },
+  {
+    "object": "block",
+    "type": "paragraph",
+    "paragraph": {
+      "rich_text": [
+        {
+          "type": "text",
+          "text": {
+            "content": "ここに詳細"
+          },
+          "annotations": {
+            "bold": true,
+            "italic": false,
+            "strikethrough": false,
+            "underline": false,
+            "code": false,
+          }
+        }
+      ]
+    }
+  }
 ]

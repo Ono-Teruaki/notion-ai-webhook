@@ -1,5 +1,19 @@
 use serde::{Deserialize, Serialize};
 
+pub enum GeminiAPIModel {
+    Gemini3Flash,
+    Gemini3Pro,
+}
+
+impl GeminiAPIModel {
+    pub fn model_name(&self) -> &'static str {
+        match &self {
+            Self::Gemini3Flash => "gemini-3-flash-preview",
+            Self::Gemini3Pro => "gemini-3-pro-preview",
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeminiAPIPrompt {
