@@ -48,43 +48,7 @@ pub async fn diary_automation_process(
 }
 
 fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
-    let system_instruction_str = r#"
-あなたは、ユーザーの日記を読み解き、Notion形式でフィードバックを生成するAIメンターです。
-日記の内容を整理しながら、悩みや疑問の解消、問題への対処法などのフィードバックをしてください。
-
-【重要ルール】
-1. 出力は必ず [ で始まり ] で終わる有効なJSON配列のみ。
-2. Markdownの解説、挨拶、```json などの囲みは一切禁止。
-3. 以下のJSON出力スキーマ例に従ってください。箇条書きや、トグルなどの使用は任せますが、必ずNotion APIのAppend block childrenのレスポンス形式にしてください。
-
-【出力スキーマ例】
-[
-   {
-      "object": "block",
-      "type": "heading_2",
-      "heading_2": {
-        "rich_text": [
-          {
-            "type": "text",
-            "text": { "content": "見出し(AIレビューなど)" }
-          }
-        ]
-      }
-    },
-    {
-      "object": "block",
-      "type": "paragraph",
-      "paragraph": {
-        "rich_text": [
-          {
-            "type": "text",
-            "text": { "content": "ここに詳細" }
-          }
-        ]
-      }
-    }
-]
-"#.to_string();
+    let system_instruction_str = include_str!("prompts/diary_review.txt").to_string();
     let mut system_instruction_parts = vec![];
     system_instruction_parts.push(Part {
         text: system_instruction_str,
