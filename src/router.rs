@@ -1,5 +1,5 @@
 use crate::{
-    automation::*,
+    automation::{diary::handle_diary_automation, review::handle_review_automation},
     service::{GeminiService, NotionService},
 };
 use axum::{routing::post, Router};
