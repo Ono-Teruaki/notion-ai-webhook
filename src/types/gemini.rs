@@ -77,3 +77,29 @@ pub struct GeminiAPIResponse {
 pub struct GeminiAPICandidate {
     pub content: GeminiAPIChatContent,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gemini_prompt_serialization() {
+        let prompt = GeminiAPIPrompt {
+            contents: vec![GeminiAPIChatContent {
+                role: Some(Role::User),
+                parts: vec![Part { text: "Hello".to_string() }],
+            }],
+            system_instruction: Some(GeminiAPIChatContent {
+                role: Some(Role::User),
+                parts: vec![Part { text: "Be helpful".to_string() }],
+            }),
+            generation_config: Some(GenerationConfig::default()),
+        };
+
+        let json = serde_json::to_string(&prompt).unwrap();
+        assert!(json.contains("\"contents\""));
+        assert!(json.contains("\"role\":\"user\""));
+        assert!(json.contains("\"systemInstruction\""));
+        assert!(json.contains("\"responseMimeType\":\"application/json\""));
+    }
+}

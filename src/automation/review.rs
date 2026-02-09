@@ -85,3 +85,29 @@ fn gen_review_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
         generation_config,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{NotionBlockResponse, NotionBlock};
+
+    #[test]
+    fn test_gen_review_prompt() {
+        let page_detail = NotionPageDetail {
+            body: NotionBlockResponse {
+                results: vec![
+                    NotionBlock::paragraph("I learned about Rust tests."),
+                    NotionBlock::code("fn test() {}", "rust".to_string()),
+                ],
+            },
+        };
+
+        let prompt = gen_review_prompt(page_detail);
+
+        assert_eq!(prompt.contents.len(), 1);
+        assert_eq!(prompt.contents[0].parts.len(), 2);
+        assert_eq!(prompt.contents[0].parts[0].text, "I learned about Rust tests.");
+        assert_eq!(prompt.contents[0].parts[1].text, "fn test() {}");
+        assert!(prompt.system_instruction.is_some());
+    }
+}

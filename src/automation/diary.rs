@@ -85,3 +85,29 @@ fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
         generation_config,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{NotionBlockResponse, NotionBlock};
+
+    #[test]
+    fn test_gen_diary_prompt() {
+        let page_detail = NotionPageDetail {
+            body: NotionBlockResponse {
+                results: vec![
+                    NotionBlock::paragraph("Today was a good day."),
+                    NotionBlock::heading_2("Goals"),
+                ],
+            },
+        };
+
+        let prompt = gen_diary_prompt(page_detail);
+
+        assert_eq!(prompt.contents.len(), 1);
+        assert_eq!(prompt.contents[0].parts.len(), 2);
+        assert_eq!(prompt.contents[0].parts[0].text, "Today was a good day.");
+        assert_eq!(prompt.contents[0].parts[1].text, "Goals");
+        assert!(prompt.system_instruction.is_some());
+    }
+}

@@ -181,7 +181,9 @@ impl NotionRichText {
 
     fn plain_text(&self) -> Option<&str> {
         match self {
-            NotionRichText::Text { plain_text, .. } => plain_text.as_deref(),
+            NotionRichText::Text { text, plain_text, .. } => {
+                plain_text.as_deref().or(Some(&text.content))
+            }
             NotionRichText::Mention { plain_text, .. } => plain_text.as_deref(),
             NotionRichText::Equation { plain_text, .. } => plain_text.as_deref(),
         }
@@ -332,5 +334,45 @@ impl NotionTextContent {
             content: text.to_string(),
             link: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_text_paragraph() {
+        let block = NotionBlock::paragraph("Hello Notion");
+        assert_eq!(block.extract_text(), Some("Hello Notion".to_string()));
+    }
+
+    #[test]
+    fn test_extract_text_headings() {
+        let h1 = NotionBlock::heading_1("H1 Title");
+        let h2 = NotionBlock::heading_2("H2 Title");
+        let h3 = NotionBlock::heading_3("H3 Title");
+        assert_eq!(h1.extract_text(), Some("H1 Title".to_string()));
+        assert_eq!(h2.extract_text(), Some("H2 Title".to_string()));
+        assert_eq!(h3.extract_text(), Some("H3 Title".to_string()));
+    }
+
+    #[test]
+    fn test_extract_text_todo() {
+        let block = NotionBlock::ToDo {
+            to_do: ToDoBlockContent {
+                rich_text: vec![NotionRichText::new("Buy milk")],
+                checked: false,
+            },
+        };
+        assert_eq!(block.extract_text(), Some("Buy milk".to_string()));
+    }
+
+    #[test]
+    fn test_notion_block_serialization() {
+        let block = NotionBlock::paragraph("Test");
+        let json = serde_json::to_string(&block).unwrap();
+        assert!(json.contains("\"type\":\"paragraph\""));
+        assert!(json.contains("\"content\":\"Test\""));
     }
 }
