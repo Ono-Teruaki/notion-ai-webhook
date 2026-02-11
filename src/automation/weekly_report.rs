@@ -133,14 +133,17 @@ pub async fn weekly_report_process(
     .await?;
 
     // 6. Clear Existing Content & Append to Report Page (Webhook Source)
-    println!("Clearing existing content in report page: {}", report_page_id);
+    println!(
+        "Clearing existing content in report page: {}",
+        report_page_id
+    );
     clear_page_content(state, report_page_id).await?;
 
     append_notion_block_to_page(&state.notion_service, report_page_id, gened_blocks.clone()) // Clone blocks for reuse
         .await?;
 
     // 7. Create New Page in Report DB
-    let new_page_title = format!("週次レポート ({} ~ {})", one_week_ago, today);
+    let new_page_title = format!("{} ~ {}", one_week_ago, today);
     let create_page_request = NotionCreatePageRequest {
         parent: Parent {
             database_id: state.notion_service.report_db_id.clone(),
@@ -229,3 +232,4 @@ fn gen_weekly_report_prompt(diary_content: String) -> GeminiAPIPrompt {
         generation_config,
     }
 }
+
