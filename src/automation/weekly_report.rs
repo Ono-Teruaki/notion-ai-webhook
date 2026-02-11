@@ -181,8 +181,11 @@ async fn clear_page_content(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let blocks = fetch_block_ids(&state.notion_service, page_id).await?;
     for block in blocks {
-        // Skip deleting child databases and buttons to avoid data loss/UI removal
-        if block.block_type == "child_database" || block.block_type == "button" {
+        // Skip deleting child databases, buttons, and unsupported blocks (often buttons) to avoid data loss
+        if block.block_type == "child_database"
+            || block.block_type == "button"
+            || block.block_type == "unsupported"
+        {
             println!(
                 "Skipping deletion of {} block: {}",
                 block.block_type, block.id
@@ -232,4 +235,3 @@ fn gen_weekly_report_prompt(diary_content: String) -> GeminiAPIPrompt {
         generation_config,
     }
 }
-
