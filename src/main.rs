@@ -15,9 +15,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::new();
     let notion_api_key = env::var("NOTION_API_KEY")?;
     let gemini_api_key = env::var("GEMINI_API_KEY")?;
+    let diary_db_id = env::var("NOTION_DIARY_DB_ID")?;
+    let report_db_id = env::var("NOTION_REPORT_DB_ID")?;
 
     let state = AppState {
-        notion_service: NotionService::new(client.clone(), notion_api_key)?,
+        notion_service: NotionService::new(client.clone(), notion_api_key, diary_db_id, report_db_id)?,
         gemini_service: GeminiService::new(client.clone(), gemini_api_key)?,
     };
     let app = router(state);

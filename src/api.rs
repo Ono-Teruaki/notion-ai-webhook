@@ -52,6 +52,62 @@ pub async fn append_notion_block_to_page(
     Ok(())
 }
 
+pub async fn query_database(
+    service: &NotionService,
+    database_id: &str,
+    query: NotionDatabaseQuery,
+) -> Result<NotionDatabaseQueryResponse, Box<dyn std::error::Error>> {
+    let url = format!("https://api.notion.com/v1/databases/{}/query", database_id);
+    println!("Query Database URL: {:?}", url);
+    let response = service
+        .client
+        .post(&url)
+        .header("Notion-Version", "2022-06-28")
+        .header(AUTHORIZATION, format!("Bearer {}", service.api_key))
+        .json(&query)
+        .send()
+        .await?;
+
+    let status = response.status();
+    let body_text = response.text().await?;
+
+    if !status.is_success() {
+        println!("Query Database Error Status: {}", status);
+        println!("Query Database Error Body: {}", body_text);
+        return Err(format!("Notion API Error: Status {}, Body: {}", status, body_text).into());
+    }
+
+    let response_data: NotionDatabaseQueryResponse = serde_json::from_str(&body_text)?;
+    Ok(response_data)
+}
+
+pub async fn create_page(
+    service: &NotionService,
+    request: NotionCreatePageRequest,
+) -> Result<NotionPage, Box<dyn std::error::Error>> {
+    let url = "https://api.notion.com/v1/pages";
+    let response = service
+        .client
+        .post(url)
+        .header("Notion-Version", "2022-06-28")
+        .header(AUTHORIZATION, format!("Bearer {}", service.api_key))
+        .json(&request)
+        .send()
+        .await?;
+
+    let status = response.status();
+    let body_text = response.text().await?;
+
+    if !status.is_success() {
+        println!("Create Page Error Status: {}", status);
+        println!("Create Page Error Body: {}", body_text);
+        return Err(format!("Notion API Error: Status {}, Body: {}", status, body_text).into());
+    }
+
+    let response_data: NotionPage = serde_json::from_str(&body_text)?;
+    Ok(response_data)
+}
+
 async fn push_to_gemini_api(
     service: &GeminiService,
     prompt: GeminiAPIPrompt,
@@ -92,4 +148,43 @@ pub async fn gen_notion_page_contents_from_gemini_api(
     println!("Generated Block List: {:?}", generated_blocks);
 
     Ok(generated_blocks)
+}
+
+pub async fn fetch_block_ids(
+    service: &NotionService,
+    page_id: &str,
+) -> Result<Vec<NotionBlockId>, Box<dyn std::error::Error>> {
+    let url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
+
+    let response = service
+        .client
+        .get(&url)
+        .header("Notion-Version", "2022-06-28")
+        .header(AUTHORIZATION, format!("Bearer {}", service.api_key))
+        .send()
+        .await?
+        .json::<NotionBlockIdListResponse>()
+        .await?;
+
+    Ok(response.results)
+}
+
+pub async fn delete_block(
+    service: &NotionService,
+    block_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let url = format!("https://api.notion.com/v1/blocks/{}", block_id);
+    let response = service
+        .client
+        .delete(&url)
+        .header("Notion-Version", "2022-06-28")
+        .header(AUTHORIZATION, format!("Bearer {}", service.api_key))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        println!("Delete Block Error: {}", response.status());
+    }
+
+    Ok(())
 }

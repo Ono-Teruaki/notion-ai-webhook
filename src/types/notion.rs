@@ -10,6 +10,38 @@ pub struct NotionPageRef {
     pub id: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct NotionDatabaseQuery {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filter: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sorts: Option<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotionDatabaseQueryResponse {
+    pub results: Vec<NotionPage>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NotionPage {
+    pub id: String,
+    pub properties: serde_json::Value,
+    pub url: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NotionCreatePageRequest {
+    pub parent: Parent,
+    pub properties: serde_json::Value,
+    pub children: Vec<NotionBlock>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Parent {
+    pub database_id: String,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NotionPageDetail {
     pub body: NotionBlockResponse,
@@ -33,7 +65,19 @@ pub struct NotionBlockResponse {
     pub results: Vec<NotionBlock>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
+pub struct NotionBlockId {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub block_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotionBlockIdListResponse {
+    pub results: Vec<NotionBlockId>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionBlock {
     #[serde(rename = "heading_1")]
@@ -107,7 +151,7 @@ impl NotionBlock {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BlockContent {
     pub rich_text: Vec<NotionRichText>,
 }
@@ -120,7 +164,7 @@ impl BlockContent {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CodeBlockContent {
     // caption
     rich_text: Vec<NotionRichText>,
@@ -136,7 +180,7 @@ impl CodeBlockContent {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ToggleBlockContent {
     pub rich_text: Vec<NotionRichText>,
     // トグルの中身を再帰的に持てるようにする
@@ -144,7 +188,7 @@ pub struct ToggleBlockContent {
     pub children: Option<Vec<NotionBlock>>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionRichText {
     Text {
@@ -190,7 +234,7 @@ impl NotionRichText {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 #[serde(default)]
 pub struct RichTextAnnotations {
@@ -216,7 +260,7 @@ impl Default for RichTextAnnotations {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum RichTextColor {
     Default,
@@ -305,16 +349,16 @@ impl HasRichText for CodeBlockContent {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ToDoBlockContent {
     pub rich_text: Vec<NotionRichText>,
     pub checked: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct EmptyStruct {}
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct NotionTextContent {
     pub content: String,
@@ -322,7 +366,7 @@ pub struct NotionTextContent {
     pub link: Option<NotionLinkText>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct NotionLinkText {
     pub url: String,
