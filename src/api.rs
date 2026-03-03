@@ -173,10 +173,15 @@ pub async fn gen_notion_page_contents_from_gemini_api(
 
     let generated_content_str = response_data
         .candidates
-        .first()
-        .and_then(|candidate| candidate.content.parts.first())
-        .map(|part| part.text.as_str())
-        .ok_or_else(|| "Gemini API response did not contain candidates content".to_string())?;
+        .iter()
+        .flat_map(|candidate| candidate.content.parts.iter())
+        .find_map(|part| part.text.as_deref())
+        .ok_or_else(|| {
+            format!(
+                "Gemini API response did not contain text parts: {:?}",
+                response_data
+            )
+        })?;
     println!("Generated Content String: {:?}", generated_content_str);
 
     let generated_blocks: Vec<NotionBlock> = match serde_json::from_str(generated_content_str) {

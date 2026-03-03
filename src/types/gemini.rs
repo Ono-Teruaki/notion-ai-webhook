@@ -70,13 +70,28 @@ pub enum ResponseMimeType {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeminiAPIResponse {
+    #[serde(default)]
     pub candidates: Vec<GeminiAPICandidate>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GeminiAPICandidate {
-    pub content: GeminiAPIChatContent,
+    #[serde(default)]
+    pub content: GeminiAPIResponseContent,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GeminiAPIResponseContent {
+    #[serde(default)]
+    pub parts: Vec<GeminiAPIResponsePart>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct GeminiAPIResponsePart {
+    #[serde(default)]
+    pub text: Option<String>,
 }
 
 #[cfg(test)]
@@ -102,5 +117,21 @@ mod tests {
         assert!(json.contains("\"role\":\"user\""));
         assert!(json.contains("\"systemInstruction\""));
         assert!(json.contains("\"responseMimeType\":\"application/json\""));
+    }
+
+    #[test]
+    fn test_gemini_response_without_candidates_is_valid() {
+        let json = r#"{"promptFeedback":{"blockReason":"SAFETY"}}"#;
+        let response: GeminiAPIResponse = serde_json::from_str(json).unwrap();
+        assert!(response.candidates.is_empty());
+    }
+
+    #[test]
+    fn test_gemini_response_part_without_text_is_valid() {
+        let json = r#"{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"text/plain","data":"abc"}}]}}]}"#;
+        let response: GeminiAPIResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.candidates.len(), 1);
+        assert_eq!(response.candidates[0].content.parts.len(), 1);
+        assert!(response.candidates[0].content.parts[0].text.is_none());
     }
 }
