@@ -128,7 +128,7 @@ pub async fn weekly_report_process(
     let gened_blocks = gen_notion_page_contents_from_gemini_api(
         &state.gemini_service,
         prompt,
-        GeminiAPIModel::Gemini3Flash,
+        GeminiAPIModel::Gemini3Pro,
     )
     .await?;
 

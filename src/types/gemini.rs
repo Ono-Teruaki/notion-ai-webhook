@@ -9,7 +9,7 @@ impl GeminiAPIModel {
     pub fn model_name(&self) -> &'static str {
         match &self {
             Self::Gemini3Flash => "gemini-3-flash-preview",
-            Self::Gemini3Pro => "gemini-3-pro-preview",
+            Self::Gemini3Pro => "gemini-3.1-pro-preview",
         }
     }
 }

@@ -40,7 +40,7 @@ pub async fn diary_automation_process(
     let gened_block_contents = gen_notion_page_contents_from_gemini_api(
         &state.gemini_service,
         prompt,
-        GeminiAPIModel::Gemini3Flash,
+        GeminiAPIModel::Gemini3Pro,
     )
     .await?;
 
@@ -89,7 +89,7 @@ fn gen_diary_prompt(page_detail: NotionPageDetail) -> GeminiAPIPrompt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{NotionBlockResponse, NotionBlock};
+    use crate::types::{NotionBlock, NotionBlockResponse};
 
     #[test]
     fn test_gen_diary_prompt() {
