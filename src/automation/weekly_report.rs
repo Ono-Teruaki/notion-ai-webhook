@@ -22,8 +22,8 @@ pub async fn handle_weekly_report(
 ) -> StatusCode {
     tokio::spawn(async move {
         match weekly_report_process(&state, payload).await {
-            Ok(_) => println!("Weekly report generated successfully"),
-            Err(e) => println!("Weekly report generation failed: {}", e),
+            Ok(_) => println!("週次レポート生成完了"),
+            Err(e) => println!("週次レポート生成失敗: {}", e),
         }
     });
 
@@ -41,7 +41,7 @@ pub async fn weekly_report_process(
     let one_week_ago = today - Duration::days(7);
 
     println!(
-        "Generating weekly report for period: {} to {}",
+        "週次レポート生成期間: {} 〜 {}",
         one_week_ago, today
     );
 
@@ -80,7 +80,7 @@ pub async fn weekly_report_process(
     )
     .await?;
 
-    println!("Found {} diary entries", diary_entries.results.len());
+    println!("日記エントリ取得数: {}", diary_entries.results.len());
 
     // 3. Extract Content from Diary Entries
     let mut all_diary_text = String::new();
@@ -99,13 +99,13 @@ pub async fn weekly_report_process(
                 }
             }
             Err(e) => {
-                println!("Failed to fetch content for page {}: {}", page.id, e);
+                println!("ページコンテンツ取得失敗 {}: {}", page.id, e);
             }
         }
     }
 
     if all_diary_text.is_empty() {
-        println!("No diary content found for the week.");
+        println!("対象期間の日記が見つかりませんでした。");
         // Clear existing content even if no diary found? Maybe just append "No content".
         // But the requirement is to clear content before update.
         clear_page_content(state, report_page_id).await?;
@@ -134,7 +134,7 @@ pub async fn weekly_report_process(
 
     // 6. Clear Existing Content & Append to Report Page (Webhook Source)
     println!(
-        "Clearing existing content in report page: {}",
+        "レポートページの既存コンテンツをクリアします: {}",
         report_page_id
     );
     clear_page_content(state, report_page_id).await?;
@@ -168,8 +168,8 @@ pub async fn weekly_report_process(
     };
 
     match create_page(&state.notion_service, create_page_request).await {
-        Ok(page) => println!("Created new report page: {}", page.url),
-        Err(e) => println!("Failed to create new report page: {}", e),
+        Ok(page) => println!("新規レポートページ作成完了: {}", page.url),
+        Err(e) => println!("新規レポートページ作成失敗: {}", e),
     }
 
     Ok(())
@@ -187,7 +187,7 @@ async fn clear_page_content(
             || block.block_type == "unsupported"
         {
             println!(
-                "Skipping deletion of {} block: {}",
+                "{} ブロックの削除をスキップします: {}",
                 block.block_type, block.id
             );
             continue;

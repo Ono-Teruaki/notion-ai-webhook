@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, time::Duration};
 
 use axum::serve;
 use dotenv::dotenv;
@@ -12,7 +12,10 @@ use tokio;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    let client = Client::new();
+    let client = Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(60))
+        .build()?;
     let notion_api_key = env::var("NOTION_API_KEY")?;
     let gemini_api_key = env::var("GEMINI_API_KEY")?;
     let diary_db_id = env::var("NOTION_DIARY_DB_ID")?;

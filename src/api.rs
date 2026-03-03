@@ -3,6 +3,7 @@ use crate::{
     types::*,
 };
 use reqwest::header::AUTHORIZATION;
+use std::time::Duration;
 
 pub async fn fetch_notion_page(
     service: &NotionService,
@@ -47,7 +48,7 @@ pub async fn append_notion_block_to_page(
 
     let response_body = response.text().await;
 
-    println!("Notion page Append Result: {:?}", response_body);
+    println!("Notion ページ追記結果: {:?}", response_body);
 
     Ok(())
 }
@@ -58,7 +59,7 @@ pub async fn query_database(
     query: NotionDatabaseQuery,
 ) -> Result<NotionDatabaseQueryResponse, Box<dyn std::error::Error>> {
     let url = format!("https://api.notion.com/v1/databases/{}/query", database_id);
-    println!("Query Database URL: {:?}", url);
+    println!("データベースクエリ URL: {:?}", url);
     let response = service
         .client
         .post(&url)
@@ -72,8 +73,8 @@ pub async fn query_database(
     let body_text = response.text().await?;
 
     if !status.is_success() {
-        println!("Query Database Error Status: {}", status);
-        println!("Query Database Error Body: {}", body_text);
+        println!("データベースクエリ エラーステータス: {}", status);
+        println!("データベースクエリ エラーボディ: {}", body_text);
         return Err(format!("Notion API Error: Status {}, Body: {}", status, body_text).into());
     }
 
@@ -99,8 +100,8 @@ pub async fn create_page(
     let body_text = response.text().await?;
 
     if !status.is_success() {
-        println!("Create Page Error Status: {}", status);
-        println!("Create Page Error Body: {}", body_text);
+        println!("ページ作成 エラーステータス: {}", status);
+        println!("ページ作成 エラーボディ: {}", body_text);
         return Err(format!("Notion API Error: Status {}, Body: {}", status, body_text).into());
     }
 
@@ -120,32 +121,99 @@ async fn push_to_gemini_api(
         model_name, service.api_key
     );
 
-    let response = service
-        .client
-        .post(url)
-        .json(prompt)
-        .send()
-        .await?;
+    const MAX_RETRIES: u32 = 3;
+    let mut last_error: String = String::new();
 
-    let status = response.status();
-    let body_text = response.text().await?;
+    for attempt in 0..MAX_RETRIES {
+        if attempt > 0 {
+            let wait_secs = 2u64.pow(attempt);
+            println!(
+                "Gemini API リトライ ({}/{}): model={}, {}秒待機中...",
+                attempt,
+                MAX_RETRIES - 1,
+                model_name,
+                wait_secs
+            );
+            tokio::time::sleep(Duration::from_secs(wait_secs)).await;
+        }
 
-    if !status.is_success() {
-        return Err(format!(
-            "Gemini API Error: model={}, status={}, body={}",
-            model_name, status, body_text
-        )
-        .into());
+        let response = match service.client.post(&url).json(prompt).send().await {
+            Ok(r) => r,
+            Err(e) => {
+                last_error = format!(
+                    "Gemini API リクエスト送信失敗: model={}, error={}",
+                    model_name, e
+                );
+                println!("{}", last_error);
+                continue;
+            }
+        };
+
+        let status = response.status();
+        println!(
+            "Gemini API レスポンスステータス: model={}, status={}, attempt={}",
+            model_name,
+            status,
+            attempt + 1
+        );
+
+        let body_bytes = match response.bytes().await {
+            Ok(b) => b,
+            Err(e) => {
+                last_error = format!(
+                    "Gemini API レスポンスボディの読み取りに失敗しました: model={}, error={}",
+                    model_name, e
+                );
+                println!("{}", last_error);
+                continue;
+            }
+        };
+
+        let body_text = match String::from_utf8(body_bytes.to_vec()) {
+            Ok(t) => t,
+            Err(e) => {
+                let preview: Vec<u8> = body_bytes.iter().take(200).cloned().collect();
+                return Err(format!(
+                    "Gemini API レスポンスが UTF-8 ではありません: model={}, error={}, bytes(先頭200)={:?}",
+                    model_name, e, preview
+                )
+                .into());
+            }
+        };
+
+        // 503 は高負荷による一時的なエラーのためリトライ
+        if status.as_u16() == 503 {
+            last_error = format!(
+                "Gemini API エラー: model={}, status={}, body={}",
+                model_name, status, body_text
+            );
+            println!("Gemini API 503 (高負荷、リトライします): model={}", model_name);
+            continue;
+        }
+
+        if !status.is_success() {
+            return Err(format!(
+                "Gemini API エラー: model={}, status={}, body={}",
+                model_name, status, body_text
+            )
+            .into());
+        }
+
+        let response_data: GeminiAPIResponse = serde_json::from_str(&body_text).map_err(|e| {
+            format!(
+                "Gemini レスポンスボディの JSON デコードに失敗しました: model={}, error={}, body={}",
+                model_name, e, body_text
+            )
+        })?;
+
+        return Ok(response_data);
     }
 
-    let response_data: GeminiAPIResponse = serde_json::from_str(&body_text).map_err(|e| {
-        format!(
-            "Failed to decode Gemini response body: model={}, error={}, body={}",
-            model_name, e, body_text
-        )
-    })?;
-
-    Ok(response_data)
+    Err(format!(
+        "Gemini API 最大リトライ回数({})超過: model={}, last_error={}",
+        MAX_RETRIES, model_name, last_error
+    )
+    .into())
 }
 
 pub async fn gen_notion_page_contents_from_gemini_api(
@@ -161,7 +229,7 @@ pub async fn gen_notion_page_contents_from_gemini_api(
             Ok(response_data) => response_data,
             Err(primary_error_message) => {
                 println!(
-                    "Gemini pro call failed, retrying with flash model: {}",
+                    "Gemini Pro 呼び出し失敗。Flash モデルで再試行します: {}",
                     primary_error_message
                 );
                 push_to_gemini_api(service, &prompt, GeminiAPIModel::Gemini3Flash).await?
@@ -178,17 +246,17 @@ pub async fn gen_notion_page_contents_from_gemini_api(
         .find_map(|part| part.text.as_deref())
         .ok_or_else(|| {
             format!(
-                "Gemini API response did not contain text parts: {:?}",
+                "Gemini API レスポンスにテキストが含まれていません: {:?}",
                 response_data
             )
         })?;
-    println!("Generated Content String: {:?}", generated_content_str);
+    println!("生成コンテンツ文字列: {:?}", generated_content_str);
 
     let generated_blocks: Vec<NotionBlock> = match serde_json::from_str(generated_content_str) {
         Ok(valid_blocks) => valid_blocks,
         Err(_) => vec![NotionBlock::heading_3("AIレスポンス生成に失敗しました")],
     };
-    println!("Generated Block List: {:?}", generated_blocks);
+    println!("生成ブロックリスト: {:?}", generated_blocks);
 
     Ok(generated_blocks)
 }
@@ -226,7 +294,7 @@ pub async fn delete_block(
         .await?;
 
     if !response.status().is_success() {
-        println!("Delete Block Error: {}", response.status());
+        println!("ブロック削除エラー: {}", response.status());
     }
 
     Ok(())

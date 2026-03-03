@@ -18,8 +18,8 @@ pub async fn handle_review_automation(
 ) -> StatusCode {
     tokio::spawn(async move {
         match review_automation_process(&state, payload).await {
-            Ok(_) => println!("Automation completed successfully"),
-            Err(e) => println!("Automation failed: {}", e),
+            Ok(_) => println!("オートメーション完了"),
+            Err(e) => println!("オートメーション失敗: {}", e),
         }
     });
 
@@ -30,10 +30,10 @@ pub async fn review_automation_process(
     state: &AppState,
     payload: NotionWebhookPayload,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Webhook payload: {:?}", payload);
+    println!("Webhook ペイロード: {:?}", payload);
     let page_id = &payload.data.id;
     let notion_page_content = fetch_notion_page(&state.notion_service, page_id).await?;
-    println!("Notion Page Content: {:?}", notion_page_content);
+    println!("Notion ページコンテンツ: {:?}", notion_page_content);
 
     let prompt = gen_review_prompt(notion_page_content);
 
@@ -44,7 +44,7 @@ pub async fn review_automation_process(
     )
     .await?;
 
-    println!("Gemini API Response: {gened_block_contents:?}");
+    println!("Gemini API レスポンス: {gened_block_contents:?}");
 
     append_notion_block_to_page(&state.notion_service, page_id, gened_block_contents).await?;
 
