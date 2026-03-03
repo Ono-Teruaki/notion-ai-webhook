@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy)]
 pub enum GeminiAPIModel {
     Gemini3Flash,
     Gemini3Pro,

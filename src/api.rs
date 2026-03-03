@@ -110,26 +110,42 @@ pub async fn create_page(
 
 async fn push_to_gemini_api(
     service: &GeminiService,
-    prompt: GeminiAPIPrompt,
+    prompt: &GeminiAPIPrompt,
     model: GeminiAPIModel,
 ) -> Result<GeminiAPIResponse, Box<dyn std::error::Error>> {
-    let model = model.model_name();
+    let model_name = model.model_name();
 
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-        model, service.api_key
+        model_name, service.api_key
     );
 
     let response = service
         .client
         .post(url)
-        .json(&prompt)
+        .json(prompt)
         .send()
-        .await?
-        .json::<GeminiAPIResponse>()
         .await?;
 
-    Ok(response)
+    let status = response.status();
+    let body_text = response.text().await?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "Gemini API Error: model={}, status={}, body={}",
+            model_name, status, body_text
+        )
+        .into());
+    }
+
+    let response_data: GeminiAPIResponse = serde_json::from_str(&body_text).map_err(|e| {
+        format!(
+            "Failed to decode Gemini response body: model={}, error={}, body={}",
+            model_name, e, body_text
+        )
+    })?;
+
+    Ok(response_data)
 }
 
 pub async fn gen_notion_page_contents_from_gemini_api(
@@ -137,11 +153,33 @@ pub async fn gen_notion_page_contents_from_gemini_api(
     prompt: GeminiAPIPrompt,
     model: GeminiAPIModel,
 ) -> Result<Vec<NotionBlock>, Box<dyn std::error::Error>> {
-    let response_data = push_to_gemini_api(service, prompt, model).await?;
-    let generated_content_str = &response_data.candidates[0].content.parts[0].text;
+    let response_data = if matches!(model, GeminiAPIModel::Gemini3Pro) {
+        match push_to_gemini_api(service, &prompt, model)
+            .await
+            .map_err(|error| error.to_string())
+        {
+            Ok(response_data) => response_data,
+            Err(primary_error_message) => {
+                println!(
+                    "Gemini pro call failed, retrying with flash model: {}",
+                    primary_error_message
+                );
+                push_to_gemini_api(service, &prompt, GeminiAPIModel::Gemini3Flash).await?
+            }
+        }
+    } else {
+        push_to_gemini_api(service, &prompt, model).await?
+    };
+
+    let generated_content_str = response_data
+        .candidates
+        .first()
+        .and_then(|candidate| candidate.content.parts.first())
+        .map(|part| part.text.as_str())
+        .ok_or_else(|| "Gemini API response did not contain candidates content".to_string())?;
     println!("Generated Content String: {:?}", generated_content_str);
 
-    let generated_blocks: Vec<NotionBlock> = match serde_json::from_str(&generated_content_str) {
+    let generated_blocks: Vec<NotionBlock> = match serde_json::from_str(generated_content_str) {
         Ok(valid_blocks) => valid_blocks,
         Err(_) => vec![NotionBlock::heading_3("AIレスポンス生成に失敗しました")],
     };
